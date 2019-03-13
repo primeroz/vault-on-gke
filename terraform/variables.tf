@@ -1,19 +1,9 @@
 variable "region" {
   type    = "string"
-  default = "us-east4"
+  default = "europe-west4"
 
   description = <<EOF
-Region in which to create the cluster and run Atlantis.
-EOF
-}
-
-variable "project" {
-  type    = "string"
-  default = ""
-
-  description = <<EOF
-Project ID where Terraform is authenticated to run to create additional
-projects.
+Region in which to create the cluster
 EOF
 }
 
@@ -34,11 +24,11 @@ Billing account ID.
 EOF
 }
 
-variable "org_id" {
+variable "folder_id" {
   type = "string"
 
   description = <<EOF
-Organization ID.
+Folder ID.
 EOF
 }
 
@@ -64,7 +54,7 @@ EOF
 
 variable "kubernetes_daily_maintenance_window" {
   type    = "string"
-  default = "06:00"
+  default = "03:00"
 
   description = <<EOF
 Maintenance window for GKE.
@@ -89,12 +79,6 @@ variable "service_account_custom_iam_roles" {
 List of arbitrary additional IAM roles to attach to the service account on
 the Vault nodes.
 EOF
-}
-
-variable "service_account_adfd" {
-  type = "list"
-
-  default = []
 }
 
 variable "project_services" {
@@ -211,51 +195,83 @@ You should restrict access to external IPs that need to access the cluster.
 EOF
 }
 
-variable "num_vault_pods" {
-  type    = "string"
-  default = "3"
+variable "kubernetes_namespace_flux" {
+  default = "flux"
 
   description = <<EOF
-Number of Vault pods to run. Anti-affinity rules spread pods across available
-nodes. Please use an odd number for better availability.
+Namespace where to deploy all flux resources
 EOF
 }
 
-variable "vault_container" {
-  type    = "string"
-  default = "vault:1.0.1"
+variable "kubernetes_namespace_vault" {
+  default = "vault"
 
   description = <<EOF
-Name of the Vault container image to deploy. This can be specified like
-"container:version" or as a full container URL.
+Namespace where to deploy all vault resources
 EOF
 }
 
-variable "vault_init_container" {
-  type    = "string"
-  default = "sethvargo/vault-init:1.0.0"
+variable "kubernetes_memcached_version" {
+  default = "1.4.25"
 
   description = <<EOF
-Name of the Vault init container image to deploy. This can be specified like
-"container:version" or as a full container URL.
+Namespace where to deploy all vault resources
 EOF
 }
 
-variable "vault_recovery_shares" {
-  type    = "string"
-  default = "1"
+variable "kubernetes_flux_version" {
+  default = "1.11.0"
 
   description = <<EOF
-Number of recovery keys to generate.
+FLUXD Version
 EOF
 }
 
-variable "vault_recovery_threshold" {
-  type    = "string"
-  default = "1"
+variable "flux_repo_git_poll_interval" {
+  default = "5m"
 
   description = <<EOF
-Number of recovery keys required for quorum. This must be less than or equal
-to "vault_recovery_keys".
+period at which to fetch any new commits from the git repo
+EOF
+}
+
+variable "flux_repo_git_url" {
+  default = "git@github.com:weaveworks/flux-get-started"
+
+  description = <<EOF
+URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started
+EOF
+}
+
+variable "flux_repo_git_paths" {
+  type    = "list"
+  default = ["/"]
+
+  description = <<EOF
+paths within git repo to locate Kubernetes manifests (relative path)
+EOF
+}
+
+variable "flux_repo_git_branch" {
+  default = "master"
+
+  description = <<EOF
+branch of git repo to use for Kubernetes manifests
+EOF
+}
+
+variable "flux_repo_git_label" {
+  default = "flux-sync"
+
+  description = <<EOF
+label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref
+EOF
+}
+
+variable "flux_sync_garbage_collection" {
+  default = "false"
+
+  description = <<EOF
+experimental: when set, fluxd will delete resources that it created, but are no longer present in git
 EOF
 }

@@ -1,12 +1,10 @@
 # This file contains all the interactions with Google Cloud
 provider "google" {
-  region  = "${var.region}"
-  project = "${var.project}"
+  region = "${var.region}"
 }
 
 provider "google-beta" {
-  region  = "${var.region}"
-  project = "${var.project}"
+  region = "${var.region}"
 }
 
 # Generate a random id for the project - GCP projects must have globally
@@ -20,7 +18,7 @@ resource "random_id" "random" {
 resource "google_project" "vault" {
   name            = "${random_id.random.hex}"
   project_id      = "${random_id.random.hex}"
-  org_id          = "${var.org_id}"
+  folder_id       = "${var.folder_id}"
   billing_account = "${var.billing_account}"
 }
 
@@ -251,11 +249,16 @@ resource "google_container_cluster" "vault" {
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/compute",
+      "https://www.googleapis.com/auth/devstorage.read_only",
+      "https://www.googleapis.com/auth/logging.write",
+      "https://www.googleapis.com/auth/monitoring",
     ]
 
     # Set metadata on the VM to supply more entropy
     metadata {
       google-compute-enable-virtio-rng = "true"
+      disable-legacy-endpoints         = "true"
     }
 
     labels {
@@ -297,8 +300,14 @@ resource "google_container_cluster" "vault" {
   # Enable network policy configurations (like Calico) - for some reason this
   # has to be in here twice.
   network_policy {
-    enabled = true
+    provider = "CALICO"
+    enabled  = true
   }
+
+  # placeholder
+  #pod_security_policy_config {
+  #  enabled = true
+  #}
 
   # Set the maintenance window.
   maintenance_policy {
@@ -306,18 +315,15 @@ resource "google_container_cluster" "vault" {
       start_time = "${var.kubernetes_daily_maintenance_window}"
     }
   }
-
   # Allocate IPs in our subnetwork
   ip_allocation_policy {
     cluster_secondary_range_name  = "${google_compute_subnetwork.vault-subnetwork.secondary_ip_range.0.range_name}"
     services_secondary_range_name = "${google_compute_subnetwork.vault-subnetwork.secondary_ip_range.1.range_name}"
   }
-
   # Specify the list of CIDRs which can access the master's API
   master_authorized_networks_config {
     cidr_blocks = ["${var.kubernetes_master_authorized_networks}"]
   }
-
   # Configure the cluster to be private (not have public facing IPs)
   private_cluster_config {
     # This field is misleading. This prevents access to the master API from
@@ -330,7 +336,6 @@ resource "google_container_cluster" "vault" {
     enable_private_nodes   = true
     master_ipv4_cidr_block = "${var.kubernetes_masters_ipv4_cidr}"
   }
-
   depends_on = [
     "google_project_service.service",
     "google_kms_crypto_key_iam_member.vault-init",
@@ -350,6 +355,23 @@ resource "google_compute_address" "vault" {
   depends_on = ["google_project_service.service"]
 }
 
+## Exclude some known verbose logging"
+resource "google_logging_project_exclusion" "vault-init" {
+  name        = "vault-init-logs-exclusion"
+  description = "Exclude vault-init container logging"
+  project     = "${google_project.vault.project_id}"
+
+  filter = "resource.type=\"k8s_container\" AND resource.labels.container_name=\"vault-init\" AND textPayload: (\"Next check in 10s\" OR \"Vault is initialized and unsealed\" OR \"Vault is unsealed and in standby mode\")"
+}
+
+resource "google_logging_project_exclusion" "bank-vaults" {
+  name        = "bank-vaults-logs-exclusion"
+  description = "Exclude bank-vaults container logging"
+  project     = "${google_project.vault.project_id}"
+
+  filter = "resource.type=\"k8s_container\" AND resource.labels.container_name=\"bank-vaults\" AND textPayload: (\"checking if vault is\" OR \"unexpected status code: 429\")"
+}
+
 output "address" {
   value = "${google_compute_address.vault.address}"
 }
@@ -360,4 +382,20 @@ output "project" {
 
 output "region" {
   value = "${var.region}"
+}
+
+output "kms_region" {
+  value = "${google_kms_key_ring.vault.location}"
+}
+
+output "kms_key_ring" {
+  value = "${google_kms_key_ring.vault.name}"
+}
+
+output "kms_crypto_key" {
+  value = "${google_kms_crypto_key.vault-init.name}"
+}
+
+output "gcs_bucket_name" {
+  value = "${google_storage_bucket.vault.name}"
 }

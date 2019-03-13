@@ -1,5 +1,10 @@
 terraform/.terraform*
 terraform/credentials.json
+terraform/secrets.json
+terraform/secrets.tfvars
 terraform/terraform.tfvars
 terraform/terraform.tfstate*
+terraform/secrets.auto.tfvars
+terraform/terraform.auto.tfvars
 tls/*
+*.pem

@@ -14,7 +14,7 @@ resource "tls_self_signed_cert" "vault-ca" {
     organization = "HashiCorp Vault"
   }
 
-  validity_period_hours = 8760
+  validity_period_hours = 87600
   is_ca_certificate     = true
 
   allowed_uses = [
@@ -23,9 +23,9 @@ resource "tls_self_signed_cert" "vault-ca" {
     "key_encipherment",
   ]
 
-  provisioner "local-exec" {
-    command = "echo '${self.cert_pem}' > ../tls/ca.pem && chmod 0600 ../tls/ca.pem"
-  }
+  #provisioner "local-exec" {
+  #  command = "echo '${self.cert_pem}' > ../tls/ca.pem && chmod 0600 ../tls/ca.pem"
+  #}
 }
 
 # Create the Vault server certificates
@@ -33,9 +33,9 @@ resource "tls_private_key" "vault" {
   algorithm = "RSA"
   rsa_bits  = "2048"
 
-  provisioner "local-exec" {
-    command = "echo '${self.private_key_pem}' > ../tls/vault.key && chmod 0600 ../tls/vault.key"
-  }
+  #provisioner "local-exec" {
+  #  command = "echo '${self.private_key_pem}' > ../tls/vault.key && chmod 0600 ../tls/vault.key"
+  #}
 }
 
 # Create the request to sign the cert with our CA
@@ -77,7 +77,7 @@ resource "tls_locally_signed_cert" "vault" {
     "server_auth",
   ]
 
-  provisioner "local-exec" {
-    command = "echo '${self.cert_pem}' > ../tls/vault.pem && echo '${tls_self_signed_cert.vault-ca.cert_pem}' >> ../tls/vault.pem && chmod 0600 ../tls/vault.pem"
-  }
+  #  provisioner "local-exec" {
+  #    command = "echo '${self.cert_pem}' > ../tls/vault.pem && echo '${tls_self_signed_cert.vault-ca.cert_pem}' >> ../tls/vault.pem && chmod 0600 ../tls/vault.pem"
+  #  }
 }
