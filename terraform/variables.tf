@@ -275,3 +275,9 @@ variable "flux_sync_garbage_collection" {
 experimental: when set, fluxd will delete resources that it created, but are no longer present in git
 EOF
 }
+
+variable "flux_ssh_private_key" {
+  description = <<EOF
+SSH Private Key for flux - not-base64 string
+EOF
+}

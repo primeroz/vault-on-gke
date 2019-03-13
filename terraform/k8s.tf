@@ -100,12 +100,11 @@ resource "kubernetes_cluster_role" "flux" {
   ]
 }
 
-resource "kubernetes_role_binding" "flux" {
+resource "kubernetes_cluster_role_binding" "flux" {
   depends_on = ["google_container_cluster.vault"]
 
   metadata {
-    name      = "flux"
-    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
+    name = "flux"
 
     labels {
       name = "flux"
@@ -126,31 +125,59 @@ resource "kubernetes_role_binding" "flux" {
   }
 }
 
-resource "kubernetes_role_binding" "flux-vault" {
-  depends_on = ["google_container_cluster.vault"]
-
-  metadata {
-    name      = "flux"
-    namespace = "${kubernetes_namespace.vault.metadata.0.name}"
-
-    labels {
-      name = "flux"
-      app  = "flux"
-    }
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = "${kubernetes_cluster_role.flux.metadata.0.name}"
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = "${kubernetes_service_account.flux.metadata.0.name}"
-    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
-  }
-}
+# TODO: Limit scope
+#  github.com/weaveworks/flux/cluster/kubernetes/cached_disco.go:100: Failed to list *v1beta1.CustomResourceDefinition: customresourcedefinitions.apiextensions.k8s.io is forbidden: User "system:serviceaccount:flux:flux" cannot list resource "customresourcedefinitions" in API group "apiextensions.k8s.io" at the cluster scope
+#resource "kubernetes_role_binding" "flux" {
+#  depends_on = ["google_container_cluster.vault"]
+#
+#  metadata {
+#    name      = "flux"
+#    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
+#
+#    labels {
+#      name = "flux"
+#      app  = "flux"
+#    }
+#  }
+#
+#  role_ref {
+#    api_group = "rbac.authorization.k8s.io"
+#    kind      = "ClusterRole"
+#    name      = "${kubernetes_cluster_role.flux.metadata.0.name}"
+#  }
+#
+#  subject {
+#    kind      = "ServiceAccount"
+#    name      = "${kubernetes_service_account.flux.metadata.0.name}"
+#    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
+#  }
+#}
+#
+#resource "kubernetes_role_binding" "flux-vault" {
+#  depends_on = ["google_container_cluster.vault"]
+#
+#  metadata {
+#    name      = "flux"
+#    namespace = "${kubernetes_namespace.vault.metadata.0.name}"
+#
+#    labels {
+#      name = "flux"
+#      app  = "flux"
+#    }
+#  }
+#
+#  role_ref {
+#    api_group = "rbac.authorization.k8s.io"
+#    kind      = "ClusterRole"
+#    name      = "${kubernetes_cluster_role.flux.metadata.0.name}"
+#  }
+#
+#  subject {
+#    kind      = "ServiceAccount"
+#    name      = "${kubernetes_service_account.flux.metadata.0.name}"
+#    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
+#  }
+#}
 
 resource "kubernetes_secret" "flux-git-deploy" {
   depends_on = ["google_container_cluster.vault"]
@@ -163,6 +190,10 @@ resource "kubernetes_secret" "flux-git-deploy" {
       name = "flux"
       app  = "flux"
     }
+  }
+
+  data {
+    identity = "${var.flux_ssh_private_key}"
   }
 
   type = "kubernetes.io/Opaque"
@@ -238,7 +269,7 @@ resource "kubernetes_service" "memcached" {
   depends_on = ["google_container_cluster.vault"]
 
   metadata {
-    name      = "memecached"
+    name      = "memcached"
     namespace = "${kubernetes_namespace.flux.metadata.0.name}"
 
     labels {
@@ -312,6 +343,13 @@ resource "kubernetes_deployment" "flux" {
               medium = "Memory"
             }
           },
+          {
+            name = "${kubernetes_service_account.flux.default_secret_name}"
+
+            secret = {
+              secret_name = "${kubernetes_service_account.flux.default_secret_name}"
+            }
+          },
         ]
 
         container {
@@ -343,6 +381,11 @@ resource "kubernetes_deployment" "flux" {
             {
               name       = "git-keygen"
               mount_path = "/var/fluxd/keygen"
+            },
+            {
+              name       = "${kubernetes_service_account.flux.default_secret_name}"
+              mount_path = "/var/run/secrets/kubernetes.io/serviceaccount"
+              read_only  = true
             },
           ]
 
