@@ -277,7 +277,9 @@ EOF
 }
 
 variable "flux_ssh_private_key" {
+  default = "flux.key"
+
   description = <<EOF
-SSH Private Key for flux - not-base64 string
+path to key to import as ssh private key for flux
 EOF
 }

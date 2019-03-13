@@ -193,7 +193,7 @@ resource "kubernetes_secret" "flux-git-deploy" {
   }
 
   data {
-    identity = "${var.flux_ssh_private_key}"
+    identity = "${file(var.flux_ssh_private_key)}"
   }
 
   type = "kubernetes.io/Opaque"
@@ -294,7 +294,7 @@ resource "kubernetes_service" "memcached" {
 }
 
 resource "kubernetes_deployment" "flux" {
-  depends_on = ["google_container_cluster.vault"]
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.flux-git-deploy"]
 
   metadata {
     name      = "flux"

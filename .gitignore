@@ -8,3 +8,4 @@ terraform/secrets.auto.tfvars
 terraform/terraform.auto.tfvars
 tls/*
 *.pem
+*.key
