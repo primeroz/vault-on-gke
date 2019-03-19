@@ -1,0 +1,4 @@
+secrets/* filter=git-crypt diff=git-crypt
+secrets.tfvars filter=git-crypt diff=git-crypt
+secrets.json filter=git-crypt diff=git-crypt
+secrets.auto.tfvars filter=git-crypt diff=git-crypt

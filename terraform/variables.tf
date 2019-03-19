@@ -287,3 +287,8 @@ EOF
 
 variable "dns_top_zone_name" {}
 variable "dns_top_zone_project" {}
+variable "flux_vault_repo_secret_username" {}
+variable "flux_vault_repo_secret_password" {}
+variable "argocd_admin_password" {}
+variable "argocd_admin_password_mtime" {}
+variable "argocd_secret_key" {}

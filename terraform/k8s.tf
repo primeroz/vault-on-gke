@@ -399,51 +399,80 @@ resource "kubernetes_cluster_role_binding" "argocd-server" {
   }
 }
 
-##resource "kubernetes_role_binding" "flux-vault" {
-##  depends_on = ["google_container_cluster.vault"]
-##
-##  metadata {
-##    name      = "flux"
-##    namespace = "${kubernetes_namespace.vault.metadata.0.name}"
-##
-##    labels {
-##      name = "flux"
-##      app  = "flux"
-##    }
-##  }
-##
-##  role_ref {
-##    api_group = "rbac.authorization.k8s.io"
-##    kind      = "ClusterRole"
-##    name      = "${kubernetes_cluster_role.flux.metadata.0.name}"
-##  }
-##
-##  subject {
-##    kind      = "ServiceAccount"
-##    name      = "${kubernetes_service_account.flux.metadata.0.name}"
-##    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
-##  }
-##}
+resource "kubernetes_config_map" "configmap" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name = "argocd-cm"
+
+    labels {
+      "app.kubernetes.io/name"    = "argocd-cm"
+      "app.kubernetes.io/part-of" = "argocd"
+    }
+  }
+
+  data {
+    api_host = "myhost:443"
+    db_host  = "dbhost:5432"
+
+    repositories = <<EOF
+- passwordSecret:
+    key: password
+    name: repo-flux-vault-repo-3679211643
+  url: https://gitlab.com/mintel/satoshi/experimental/flux-vault-repo.git
+  usernameSecret:
+    key: username
+    name: repo-flux-vault-repo-3679211643
+EOF
+  }
+}
+
+resource "kubernetes_secret" "repo-flux-vault" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name      = "repo-flux-vault-repo-3679211643"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/name"    = "repo-flux-vault-repo-3679211643"
+      "app.kubernetes.io/part-of" = "argocd"
+    }
+  }
+
+  data {
+    username = "${var.flux_vault_repo_secret_username}"
+    password = "${var.flux_vault_repo_secret_password}"
+  }
+
+  type = "kubernetes.io/Opaque"
+}
+
 #
-#resource "kubernetes_secret" "flux-git-deploy" {
-#  depends_on = ["google_container_cluster.vault"]
-#
-#  metadata {
-#    name      = "flux-git-deploy"
-#    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
-#
-#    labels {
-#      name = "flux"
-#      app  = "flux"
-#    }
-#  }
-#
-#  data {
-#    identity = "${file(var.flux_ssh_private_key)}"
-#  }
-#
-#  type = "kubernetes.io/Opaque"
-#}
+resource "kubernetes_secret" "argocd-secret" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name      = "argocd-secret"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/name"    = "argocd-secret"
+      "app.kubernetes.io/part-of" = "argocd"
+    }
+  }
+
+  data {
+    admin.password      = "${var.argocd_admin_password}"
+    admin.passwordMtime = "${var.argocd_admin_password_mtime}"
+    server.secretkey    = "${var.argocd_secret_key}"
+    tls.crt             = "${file("../secrets/argocd_tls.crt")}"
+    tls.key             = "${file("../secrets/argocd_tls.key")}"
+  }
+
+  type = "kubernetes.io/Opaque"
+}
+
 #
 #resource "kubernetes_deployment" "flux-memcached" {
 #  depends_on = ["google_container_cluster.vault"]
