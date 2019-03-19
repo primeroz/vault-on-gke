@@ -506,10 +506,28 @@ resource "kubernetes_deployment" "argocd-application-controller" {
       spec {
         service_account_name = "${kubernetes_service_account.argocd-application-controller.metadata.0.name}"
 
+        volumes = [
+          {
+            name = "${kubernetes_service_account.argocd-application-controller.default_secret_name}"
+
+            secret = {
+              secret_name = "${kubernetes_service_account.argocd-application-controller.default_secret_name}"
+            }
+          },
+        ]
+
         container {
           image             = "argoproj/argocd:${var.argocd_version}"
           image_pull_policy = "Always"
           name              = "argocd-application-controller"
+
+          volume_mount = [
+            {
+              name       = "${kubernetes_service_account.argocd-application-controller.default_secret_name}"
+              mount_path = "/var/run/secrets/kubernetes.io/serviceaccount"
+              read_only  = true
+            },
+          ]
 
           command = [
             "argocd-application-controller",
@@ -589,6 +607,13 @@ resource "kubernetes_deployment" "argocd-dex-server" {
             name      = "static-files"
             empty_dir = {}
           },
+          {
+            name = "${kubernetes_service_account.argocd-dex-server.default_secret_name}"
+
+            secret = {
+              secret_name = "${kubernetes_service_account.argocd-dex-server.default_secret_name}"
+            }
+          },
         ]
 
         init_container {
@@ -624,6 +649,11 @@ resource "kubernetes_deployment" "argocd-dex-server" {
             {
               name       = "static-files"
               mount_path = "/shared"
+            },
+            {
+              name       = "${kubernetes_service_account.argocd-dex-server.default_secret_name}"
+              mount_path = "/var/run/secrets/kubernetes.io/serviceaccount"
+              read_only  = true
             },
           ]
 
@@ -729,6 +759,209 @@ resource "kubernetes_deployment" "argocd-redis" {
             requests {
               cpu    = "50m"
               memory = "256Mi"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_deployment" "argocd-repo-server" {
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+
+  metadata {
+    name      = "argocd-repo-server"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "repo-server"
+      "app.kubernetes.io/name"      = "argocd-repo-server"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels {
+        "app.kubernetes.io/name" = "argocd-repo-server"
+      }
+    }
+
+    template {
+      metadata {
+        labels {
+          "app.kubernetes.io/name" = "argocd-repo-server"
+        }
+      }
+
+      spec {
+        container {
+          image             = "argoproj/argocd:${var.argocd_version}"
+          image_pull_policy = "Always"
+          name              = "argocd-repo-server"
+
+          command = [
+            "argocd-repo-server",
+            "--redis",
+            "argocd-redis:6379",
+          ]
+
+          port = [
+            {
+              container_port = 8081
+            },
+            {
+              container_port = 8084
+            },
+          ]
+
+          readiness_probe {
+            tcp_socket {
+              port = 8081
+            }
+
+            initial_delay_seconds = 5
+            period_seconds        = 10
+          }
+
+          resources {
+            limits {
+              cpu    = "250m"
+              memory = "512Mi"
+            }
+
+            requests {
+              cpu    = "50m"
+              memory = "50Mi"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_deployment" "argocd-server" {
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+
+  metadata {
+    name      = "argocd-server"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "server"
+      "app.kubernetes.io/name"      = "argocd-server"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels {
+        "app.kubernetes.io/name" = "argocd-server"
+      }
+    }
+
+    template {
+      metadata {
+        labels {
+          "app.kubernetes.io/name" = "argocd-server"
+        }
+      }
+
+      spec {
+        service_account_name = "${kubernetes_service_account.argocd-server.metadata.0.name}"
+
+        volume = [
+          {
+            name      = "static-files"
+            empty_dir = {}
+          },
+          {
+            name = "${kubernetes_service_account.argocd-server.default_secret_name}"
+
+            secret = {
+              secret_name = "${kubernetes_service_account.argocd-server.default_secret_name}"
+            }
+          },
+        ]
+
+        init_container {
+          image             = "argoproj/argocd-ui:${var.argocd_version}"
+          image_pull_policy = "Always"
+          name              = "ui"
+
+          command = [
+            "cp",
+            "-r",
+            "/app",
+            "/shared",
+          ]
+
+          volume_mount = [
+            {
+              name       = "static-files"
+              mount_path = "/shared"
+            },
+          ]
+        }
+
+        container {
+          image             = "argoproj/argocd:${var.argocd_version}"
+          image_pull_policy = "Always"
+          name              = "argocd-server"
+
+          command = [
+            "argocd-server",
+            "--staticassets",
+            "/shared/app",
+          ]
+
+          volume_mount = [
+            {
+              name       = "static-files"
+              mount_path = "/shared"
+            },
+            {
+              name       = "${kubernetes_service_account.argocd-server.default_secret_name}"
+              mount_path = "/var/run/secrets/kubernetes.io/serviceaccount"
+              read_only  = true
+            },
+          ]
+
+          port = [
+            {
+              container_port = 8080
+            },
+            {
+              container_port = 8083
+            },
+          ]
+
+          readiness_probe {
+            http_get {
+              path = "/healthz"
+              port = 8080
+            }
+
+            initial_delay_seconds = 3
+            period_seconds        = 30
+          }
+
+          resources {
+            limits {
+              cpu    = "250m"
+              memory = "512Mi"
+            }
+
+            requests {
+              cpu    = "50m"
+              memory = "50Mi"
             }
           }
         }
@@ -914,10 +1147,7 @@ resource "kubernetes_deployment" "argocd-redis" {
 #          },
 #          {
 #            name = "${kubernetes_service_account.flux.default_secret_name}"
-#
-#            secret = {
-#              secret_name = "${kubernetes_service_account.flux.default_secret_name}"
-#            }
+#            secret = { secret_name = "${kubernetes_service_account.flux.default_secret_name}"  }
 #          },
 #        ]
 #
