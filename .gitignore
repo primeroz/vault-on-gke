@@ -7,5 +7,6 @@ terraform/terraform.tfstate*
 terraform/secrets.auto.tfvars
 terraform/terraform.auto.tfvars
 tls/*
+argo-secrets/*
 *.pem
 *.key

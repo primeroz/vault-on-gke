@@ -94,6 +94,43 @@ resource "google_storage_bucket_iam_member" "vault-server" {
   member = "serviceAccount:${google_service_account.vault-server.email}"
 }
 
+# Create DNS Zone and extend vault-server iam to dns.admin role
+data "google_dns_managed_zone" "dns_top_zone" {
+  name    = "${var.dns_top_zone_name}"
+  project = "${var.dns_top_zone_project}"
+}
+
+data "template_file" "project_dns_suffix" {
+  template = "${replace( format("%s.%s", random_id.random.hex, data.google_dns_managed_zone.dns_top_zone.dns_name),"/^(.*)\\./","$1" )}"
+}
+
+resource "google_dns_managed_zone" "dns" {
+  depends_on = ["google_project_service.service"]
+
+  name        = "${random_id.random.hex}"
+  dns_name    = "${data.template_file.project_dns_suffix.rendered}."
+  description = "Project DNS zone"
+  project     = "${google_project.vault.project_id}"
+}
+
+resource "google_dns_record_set" "delegation" {
+  name         = "${google_dns_managed_zone.dns.dns_name}"
+  managed_zone = "${data.google_dns_managed_zone.dns_top_zone.name}"
+  project      = "${data.google_dns_managed_zone.dns_top_zone.project}"
+  type         = "NS"
+  ttl          = 300
+
+  rrdatas = [
+    "${google_dns_managed_zone.dns.name_servers}",
+  ]
+}
+
+resource "google_project_iam_member" "service-account-dnsadmin" {
+  project = "${google_project.vault.project_id}"
+  role    = "roles/dns.admin"
+  member  = "serviceAccount:${google_service_account.vault-server.email}"
+}
+
 # Create the KMS key ring
 resource "google_kms_key_ring" "vault" {
   name     = "vault"

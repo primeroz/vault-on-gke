@@ -89,6 +89,7 @@ variable "project_services" {
     "cloudresourcemanager.googleapis.com",
     "container.googleapis.com",
     "compute.googleapis.com",
+    "dns.googleapis.com",
     "iam.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
@@ -195,8 +196,8 @@ You should restrict access to external IPs that need to access the cluster.
 EOF
 }
 
-variable "kubernetes_namespace_flux" {
-  default = "flux"
+variable "kubernetes_namespace_argocd" {
+  default = "argocd"
 
   description = <<EOF
 Namespace where to deploy all flux resources
@@ -283,3 +284,6 @@ variable "flux_ssh_private_key" {
 path to key to import as ssh private key for flux
 EOF
 }
+
+variable "dns_top_zone_name" {}
+variable "dns_top_zone_project" {}
