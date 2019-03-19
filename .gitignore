@@ -6,5 +6,6 @@ terraform/terraform.auto.tfvars
 tls/*
 argo-secrets/*
 argo/*
+argocd/*
 argodeploy/*
 *.pem

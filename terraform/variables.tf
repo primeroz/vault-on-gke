@@ -212,76 +212,15 @@ Namespace where to deploy all vault resources
 EOF
 }
 
-variable "kubernetes_memcached_version" {
-  default = "1.4.25"
-
+variable "argocd_version" {
   description = <<EOF
-Namespace where to deploy all vault resources
+argocd Version
 EOF
 }
 
-variable "kubernetes_flux_version" {
-  default = "1.11.0"
-
+variable "dex_version" {
   description = <<EOF
-FLUXD Version
-EOF
-}
-
-variable "flux_repo_git_poll_interval" {
-  default = "5m"
-
-  description = <<EOF
-period at which to fetch any new commits from the git repo
-EOF
-}
-
-variable "flux_repo_git_url" {
-  default = "git@github.com:weaveworks/flux-get-started"
-
-  description = <<EOF
-URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started
-EOF
-}
-
-variable "flux_repo_git_paths" {
-  type    = "list"
-  default = ["/"]
-
-  description = <<EOF
-paths within git repo to locate Kubernetes manifests (relative path)
-EOF
-}
-
-variable "flux_repo_git_branch" {
-  default = "master"
-
-  description = <<EOF
-branch of git repo to use for Kubernetes manifests
-EOF
-}
-
-variable "flux_repo_git_label" {
-  default = "flux-sync"
-
-  description = <<EOF
-label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref
-EOF
-}
-
-variable "flux_sync_garbage_collection" {
-  default = "false"
-
-  description = <<EOF
-experimental: when set, fluxd will delete resources that it created, but are no longer present in git
-EOF
-}
-
-variable "flux_ssh_private_key" {
-  default = "flux.key"
-
-  description = <<EOF
-path to key to import as ssh private key for flux
+dex Version
 EOF
 }
 

@@ -473,6 +473,225 @@ resource "kubernetes_secret" "argocd-secret" {
   type = "kubernetes.io/Opaque"
 }
 
+resource "kubernetes_deployment" "argocd-application-controller" {
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+
+  metadata {
+    name      = "argocd-application-controller"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "application-controller"
+      "app.kubernetes.io/name"      = "argocd-application-controller"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels {
+        "app.kubernetes.io/name" = "argocd-application-controller"
+      }
+    }
+
+    template {
+      metadata {
+        labels {
+          "app.kubernetes.io/name" = "argocd-application-controller"
+        }
+      }
+
+      spec {
+        service_account_name = "${kubernetes_service_account.argocd-application-controller.metadata.0.name}"
+
+        container {
+          image             = "argoproj/argocd:${var.argocd_version}"
+          image_pull_policy = "Always"
+          name              = "argocd-application-controller"
+
+          command = [
+            "argocd-application-controller",
+            "--status-processors",
+            "20",
+            "--operation-processors",
+            "10",
+          ]
+
+          port = [
+            {
+              container_port = 8082
+            },
+          ]
+
+          readiness_probe {
+            tcp_socket {
+              port = 8082
+            }
+
+            initial_delay_seconds = 5
+            period_seconds        = 10
+          }
+
+          resources {
+            limits {
+              cpu    = "250m"
+              memory = "512Mi"
+            }
+
+            requests {
+              cpu    = "50m"
+              memory = "50Mi"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_deployment" "argocd-dex-server" {
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+
+  metadata {
+    name      = "argocd-dex-server"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "dex-server"
+      "app.kubernetes.io/name"      = "argocd-dex-server"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels {
+        "app.kubernetes.io/name" = "argocd-dex-server"
+      }
+    }
+
+    template {
+      metadata {
+        labels {
+          "app.kubernetes.io/name" = "argocd-dex-server"
+        }
+      }
+
+      spec {
+        service_account_name = "${kubernetes_service_account.argocd-dex-server.metadata.0.name}"
+
+        volume = [
+          {
+            name      = "static-files"
+            empty_dir = {}
+          },
+        ]
+
+        init_container {
+          image             = "argoproj/argocd:${var.argocd_version}"
+          image_pull_policy = "Always"
+          name              = "copyutil"
+
+          command = [
+            "cp",
+            "/usr/local/bin/argocd-util",
+            "/shared",
+          ]
+
+          volume_mount = [
+            {
+              name       = "static-files"
+              mount_path = "/shared"
+            },
+          ]
+        }
+
+        container {
+          image             = "quay.io/dexidp/dex:${var.dex_version}"
+          image_pull_policy = "Always"
+          name              = "dex"
+
+          command = [
+            "/shared/argocd-util",
+            "rundex",
+          ]
+
+          volume_mount = [
+            {
+              name       = "static-files"
+              mount_path = "/shared"
+            },
+          ]
+
+          port = [
+            {
+              container_port = 5556
+            },
+            {
+              container_port = 5557
+            },
+          ]
+
+          readiness_probe {
+            tcp_socket {
+              port = 8082
+            }
+
+            initial_delay_seconds = 5
+            period_seconds        = 10
+          }
+
+          resources {
+            limits {
+              cpu    = "250m"
+              memory = "512Mi"
+            }
+
+            requests {
+              cpu    = "50m"
+              memory = "50Mi"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#resource "kubernetes_service" "argocd-dex-server" {
+#  depends_on = ["google_container_cluster.vault"]
+#
+#  metadata {
+#    name      = "argocd-dex-server"
+#    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+#
+#    labels {
+#      "app.kubernetes.io/component"    = "dex-server"
+#      "app.kubernetes.io/name"    = "argocd-dex-server"
+#      "app.kubernetes.io/part-of" = "argocd"
+#    }
+#  }
+#
+#  spec {
+#    selector {
+#      app  = "${kubernetes_deployment.flux-memcached.metadata.0.labels.app}"
+#      name = "${kubernetes_deployment.flux-memcached.metadata.0.labels.name}"
+#    }
+#
+#    port {
+#      port = 11211
+#      name = "memcached"
+#    }
+#
+#    type = "ClusterIP"
+#  }
+#}
+
+
 #
 #resource "kubernetes_deployment" "flux-memcached" {
 #  depends_on = ["google_container_cluster.vault"]
