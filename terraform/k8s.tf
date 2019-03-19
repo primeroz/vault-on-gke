@@ -506,7 +506,7 @@ resource "kubernetes_deployment" "argocd-application-controller" {
       spec {
         service_account_name = "${kubernetes_service_account.argocd-application-controller.metadata.0.name}"
 
-        volumes = [
+        volume = [
           {
             name = "${kubernetes_service_account.argocd-application-controller.default_secret_name}"
 
