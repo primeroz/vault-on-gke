@@ -483,6 +483,7 @@ resource "kubernetes_deployment" "argocd-application-controller" {
     labels {
       "app.kubernetes.io/component" = "application-controller"
       "app.kubernetes.io/name"      = "argocd-application-controller"
+      "name"                        = "argocd-application-controller"
       "app.kubernetes.io/part-of"   = "argocd"
     }
   }
@@ -579,6 +580,7 @@ resource "kubernetes_deployment" "argocd-dex-server" {
     labels {
       "app.kubernetes.io/component" = "dex-server"
       "app.kubernetes.io/name"      = "argocd-dex-server"
+      "name"                        = "argocd-dex-server"
       "app.kubernetes.io/part-of"   = "argocd"
     }
   }
@@ -702,6 +704,7 @@ resource "kubernetes_deployment" "argocd-redis" {
     labels {
       "app.kubernetes.io/component" = "redis"
       "app.kubernetes.io/name"      = "argocd-redis"
+      "name"                        = "argocd-redis"
       "app.kubernetes.io/part-of"   = "argocd"
     }
   }
@@ -777,6 +780,7 @@ resource "kubernetes_deployment" "argocd-repo-server" {
     labels {
       "app.kubernetes.io/component" = "repo-server"
       "app.kubernetes.io/name"      = "argocd-repo-server"
+      "name"                        = "argocd-repo-server"
       "app.kubernetes.io/part-of"   = "argocd"
     }
   }
@@ -854,6 +858,7 @@ resource "kubernetes_deployment" "argocd-server" {
     labels {
       "app.kubernetes.io/component" = "server"
       "app.kubernetes.io/name"      = "argocd-server"
+      "name"                        = "argocd-server"
       "app.kubernetes.io/part-of"   = "argocd"
     }
   }
@@ -970,280 +975,40 @@ resource "kubernetes_deployment" "argocd-server" {
   }
 }
 
-#resource "kubernetes_service" "argocd-dex-server" {
-#  depends_on = ["google_container_cluster.vault"]
-#
-#  metadata {
-#    name      = "argocd-dex-server"
-#    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
-#
-#    labels {
-#      "app.kubernetes.io/component"    = "dex-server"
-#      "app.kubernetes.io/name"    = "argocd-dex-server"
-#      "app.kubernetes.io/part-of" = "argocd"
-#    }
-#  }
-#
-#  spec {
-#    selector {
-#      app  = "${kubernetes_deployment.flux-memcached.metadata.0.labels.app}"
-#      name = "${kubernetes_deployment.flux-memcached.metadata.0.labels.name}"
-#    }
-#
-#    port {
-#      port = 11211
-#      name = "memcached"
-#    }
-#
-#    type = "ClusterIP"
-#  }
-#}
+resource "kubernetes_service" "argocd-dex-server" {
+  depends_on = ["google_container_cluster.vault"]
 
+  metadata {
+    name      = "argocd-dex-server"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
 
-#
-#resource "kubernetes_deployment" "flux-memcached" {
-#  depends_on = ["google_container_cluster.vault"]
-#
-#  metadata {
-#    name      = "memcached"
-#    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
-#
-#    labels {
-#      name = "memcached"
-#      app  = "flux"
-#    }
-#  }
-#
-#  spec {
-#    replicas = 1
-#
-#    selector {
-#      match_labels {
-#        name = "memcached"
-#        app  = "flux"
-#      }
-#    }
-#
-#    template {
-#      metadata {
-#        labels {
-#          name = "memcached"
-#          app  = "flux"
-#        }
-#      }
-#
-#      spec {
-#        container {
-#          image = "memcached:${var.kubernetes_memcached_version}"
-#          name  = "memcached"
-#
-#          args = [
-#            "-m 512",
-#            "-I 5m",
-#            "-p 11211",
-#          ]
-#
-#          port = [
-#            {
-#              name           = "clients"
-#              container_port = 11211
-#            },
-#          ]
-#
-#          resources {
-#            limits {
-#              cpu    = "250m"
-#              memory = "512Mi"
-#            }
-#
-#            requests {
-#              cpu    = "50m"
-#              memory = "512Mi"
-#            }
-#          }
-#        }
-#      }
-#    }
-#  }
-#}
-#
-#resource "kubernetes_service" "memcached" {
-#  depends_on = ["google_container_cluster.vault"]
-#
-#  metadata {
-#    name      = "memcached"
-#    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
-#
-#    labels {
-#      name = "memcached"
-#      app  = "flux"
-#    }
-#  }
-#
-#  spec {
-#    selector {
-#      app  = "${kubernetes_deployment.flux-memcached.metadata.0.labels.app}"
-#      name = "${kubernetes_deployment.flux-memcached.metadata.0.labels.name}"
-#    }
-#
-#    port {
-#      port = 11211
-#      name = "memcached"
-#    }
-#
-#    type = "ClusterIP"
-#  }
-#}
-#
-#resource "kubernetes_deployment" "flux" {
-#  depends_on = ["google_container_cluster.vault", "kubernetes_secret.flux-git-deploy"]
-#
-#  metadata {
-#    name      = "flux"
-#    namespace = "${kubernetes_namespace.flux.metadata.0.name}"
-#
-#    labels {
-#      name = "flux"
-#      app  = "flux"
-#    }
-#  }
-#
-#  spec {
-#    replicas = 1
-#
-#    selector {
-#      match_labels {
-#        name = "flux"
-#        app  = "flux"
-#      }
-#    }
-#
-#    template {
-#      metadata {
-#        labels {
-#          name = "flux"
-#          app  = "flux"
-#        }
-#      }
-#
-#      spec {
-#        service_account_name = "${kubernetes_service_account.flux.metadata.0.name}"
-#
-#        volume = [
-#          {
-#            name = "git-key"
-#
-#            secret = {
-#              default_mode = 0400
-#              secret_name  = "${kubernetes_secret.flux-git-deploy.metadata.0.name}"
-#            }
-#          },
-#          {
-#            name = "git-keygen"
-#
-#            empty_dir = {
-#              medium = "Memory"
-#            }
-#          },
-#          {
-#            name = "${kubernetes_service_account.flux.default_secret_name}"
-#            secret = { secret_name = "${kubernetes_service_account.flux.default_secret_name}"  }
-#          },
-#        ]
-#
-#        container {
-#          image = "quay.io/weaveworks/flux:${var.kubernetes_flux_version}"
-#          name  = "flux"
-#
-#          args = ["${compact(concat(list(
-#            "--memcached-hostname=memcached.${kubernetes_namespace.flux.metadata.0.name}.svc.cluster.local",
-#            "--listen-metrics=:3031",
-#            "--git-ci-skip",
-#            "--ssh-keygen-dir=/var/fluxd/keygen",
-#            "--git-url=${var.flux_repo_git_url}",
-#            "--git-branch=${var.flux_repo_git_branch}",
-#            "--git-label=${var.flux_repo_git_label}",
-#            "--git-poll-interval=${var.flux_repo_git_poll_interval}",
-#            "--sync-garbage-collection=${var.flux_sync_garbage_collection}",
-#					  format("--k8s-namespace-whitelist=%s", kubernetes_namespace.flux.metadata.0.name),
-#					  format("--k8s-namespace-whitelist=%s", kubernetes_namespace.vault.metadata.0.name),
-#          ),
-#					formatlist("--git-path=%s", var.flux_repo_git_paths),
-#					))}"]
-#
-#          volume_mount = [
-#            {
-#              name       = "git-key"
-#              mount_path = "/etc/fluxd/ssh"
-#              read_only  = true
-#            },
-#            {
-#              name       = "git-keygen"
-#              mount_path = "/var/fluxd/keygen"
-#            },
-#            {
-#              name       = "${kubernetes_service_account.flux.default_secret_name}"
-#              mount_path = "/var/run/secrets/kubernetes.io/serviceaccount"
-#              read_only  = true
-#            },
-#          ]
-#
-#          port = [
-#            {
-#              name           = "api"
-#              container_port = 3030
-#            },
-#            {
-#              name           = "metrics"
-#              container_port = 3031
-#            },
-#          ]
-#
-#          resources {
-#            limits {
-#              cpu    = "500m"
-#              memory = "512Mi"
-#            }
-#
-#            requests {
-#              cpu    = "50m"
-#              memory = "64Mi"
-#            }
-#          }
-#        }
-#      }
-#    }
-#  }
-#}
-#
-### Build the URL for the keys on GCS
-##data "google_storage_object_signed_url" "keys" {
-##  bucket = "${google_storage_bucket.vault.name}"
-##  path   = "root-token.enc"
-##
-##  credentials = "${base64decode(google_service_account_key.vault.private_key)}"
-##
-##  depends_on = ["null_resource.wait-for-finish"]
-##}
-##
-### Download the encrypted recovery unseal keys and initial root token from GCS
-##data "http" "keys" {
-##  url = "${data.google_storage_object_signed_url.keys.signed_url}"
-##}
-##
-### Decrypt the values
-##data "google_kms_secret" "keys" {
-##  crypto_key = "${google_kms_crypto_key.vault-init.id}"
-##  ciphertext = "${data.http.keys.body}"
-##}
-##
-### Output the initial root token
-##output "root_token" {
-##  value = "${data.google_kms_secret.keys.plaintext}"
-##}
-##
-## Uncomment this if you want to decrypt the token yourself
-#output "root_token_decrypt_command" {
-#  value = "gsutil cat gs://${google_storage_bucket.vault.name}/root-token.enc | base64 --decode | gcloud kms decrypt --project ${google_project.vault.project_id} --location ${var.region} --keyring ${google_kms_key_ring.vault.name} --key ${google_kms_crypto_key.vault-init.name} --ciphertext-file - --plaintext-file -"
-#}
+    labels {
+      "app.kubernetes.io/component" = "dex-server"
+      "app.kubernetes.io/name"      = "argocd-dex-server"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
 
+  spec {
+    selector {
+      "app.kubernetes.io/name" = "${kubernetes_deployment.argocd-dex-server.metadata.0.labels.name}"
+    }
+
+    port = [
+      {
+        port        = 5556
+        name        = "http"
+        protocol    = "TCP"
+        target_port = 5556
+      },
+      {
+        port        = 5557
+        name        = "grpc"
+        protocol    = "TCP"
+        target_port = 5557
+      },
+    ]
+
+    type = "ClusterIP"
+  }
+}
