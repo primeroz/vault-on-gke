@@ -638,7 +638,7 @@ resource "kubernetes_deployment" "argocd-dex-server" {
 
           readiness_probe {
             tcp_socket {
-              port = 8082
+              port = 5556
             }
 
             initial_delay_seconds = 5
@@ -654,6 +654,81 @@ resource "kubernetes_deployment" "argocd-dex-server" {
             requests {
               cpu    = "50m"
               memory = "50Mi"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_deployment" "argocd-redis" {
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+
+  metadata {
+    name      = "argocd-redis"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "redis"
+      "app.kubernetes.io/name"      = "argocd-redis"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels {
+        "app.kubernetes.io/name" = "argocd-redis"
+      }
+    }
+
+    template {
+      metadata {
+        labels {
+          "app.kubernetes.io/name" = "argocd-redis"
+        }
+      }
+
+      spec {
+        container {
+          image             = "redis:${var.redis_version}"
+          image_pull_policy = "Always"
+          name              = "redis"
+
+          args = [
+            "--save",
+            "",
+            "--appendonly",
+            "no",
+          ]
+
+          port = [
+            {
+              container_port = 6379
+            },
+          ]
+
+          readiness_probe {
+            tcp_socket {
+              port = 6379
+            }
+
+            initial_delay_seconds = 5
+            period_seconds        = 10
+          }
+
+          resources {
+            limits {
+              cpu    = "250m"
+              memory = "512Mi"
+            }
+
+            requests {
+              cpu    = "50m"
+              memory = "256Mi"
             }
           }
         }

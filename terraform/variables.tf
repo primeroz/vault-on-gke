@@ -224,6 +224,12 @@ dex Version
 EOF
 }
 
+variable "redis_version" {
+  description = <<EOF
+redis Version
+EOF
+}
+
 variable "dns_top_zone_name" {}
 variable "dns_top_zone_project" {}
 variable "flux_vault_repo_secret_username" {}
