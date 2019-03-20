@@ -49,7 +49,8 @@ data "template_file" "argocd_crd" {
   template = "${file("${path.module}/../argocd/crd.yaml")}"
 
   vars {
-    project = "${google_kms_key_ring.vault.project}"
+    project   = "${google_kms_key_ring.vault.project}"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
   }
 }
 
@@ -69,7 +70,7 @@ resource "null_resource" "argocd_crd" {
     command = <<EOF
 gcloud container clusters get-credentials "${google_container_cluster.vault.name}" --region="${google_container_cluster.vault.region}" --project="${google_container_cluster.vault.project}"
 CONTEXT="gke_${google_container_cluster.vault.project}_${google_container_cluster.vault.region}_${google_container_cluster.vault.name}"
-echo '${data.template_file.argocd_crd.rendered}' | kubectl apply --context="$CONTEXT" -n ${kubernetes_namespace.argocd.name} -f -
+echo '${data.template_file.argocd_crd.rendered}' | kubectl apply --context="$CONTEXT" -n ${kubernetes_namespace.argocd.metadata.0.name} -f -
 EOF
   }
 }
@@ -403,7 +404,8 @@ resource "kubernetes_config_map" "configmap" {
   depends_on = ["google_container_cluster.vault"]
 
   metadata {
-    name = "argocd-cm"
+    name      = "argocd-cm"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
 
     labels {
       "app.kubernetes.io/name"    = "argocd-cm"
@@ -474,7 +476,7 @@ resource "kubernetes_secret" "argocd-secret" {
 }
 
 resource "kubernetes_deployment" "argocd-application-controller" {
-  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap", "kubernetes_role_binding.argocd-application-controller", "kubernetes_cluster_role_binding.argocd-application-controller"]
 
   metadata {
     name      = "argocd-application-controller"
@@ -571,7 +573,7 @@ resource "kubernetes_deployment" "argocd-application-controller" {
 }
 
 resource "kubernetes_deployment" "argocd-dex-server" {
-  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap", "kubernetes_role_binding.argocd-dex-server"]
 
   metadata {
     name      = "argocd-dex-server"
@@ -668,14 +670,17 @@ resource "kubernetes_deployment" "argocd-dex-server" {
             },
           ]
 
-          readiness_probe {
-            tcp_socket {
-              port = 5556
-            }
+          #readiness_probe {
+          #  http_get {
+          #    path = "/healthz"
+          #    port = 5556
+          #    scheme = "HTTPS"
+          #  }
 
-            initial_delay_seconds = 5
-            period_seconds        = 10
-          }
+
+          #  initial_delay_seconds = 5
+          #  period_seconds        = 10
+          #}
 
           resources {
             limits {
@@ -849,7 +854,7 @@ resource "kubernetes_deployment" "argocd-repo-server" {
 }
 
 resource "kubernetes_deployment" "argocd-server" {
-  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap"]
+  depends_on = ["google_container_cluster.vault", "kubernetes_secret.argocd-secret", "kubernetes_secret.repo-flux-vault", "kubernetes_config_map.configmap", "kubernetes_role_binding.argocd-server", "kubernetes_cluster_role_binding.argocd-server"]
 
   metadata {
     name      = "argocd-server"
@@ -1006,6 +1011,178 @@ resource "kubernetes_service" "argocd-dex-server" {
         name        = "grpc"
         protocol    = "TCP"
         target_port = 5557
+      },
+    ]
+
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_service" "argocd-metrics" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name      = "argocd-metrics"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "metrics"
+      "app.kubernetes.io/name"      = "argocd-metrics"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    selector {
+      "app.kubernetes.io/name" = "${kubernetes_deployment.argocd-application-controller.metadata.0.labels.name}"
+    }
+
+    port = [
+      {
+        port        = 8082
+        name        = "metrics"
+        protocol    = "TCP"
+        target_port = 8082
+      },
+    ]
+
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_service" "argocd-redis" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name      = "argocd-redis"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "redis"
+      "app.kubernetes.io/name"      = "argocd-redis"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    selector {
+      "app.kubernetes.io/name" = "${kubernetes_deployment.argocd-redis.metadata.0.labels.name}"
+    }
+
+    port = [
+      {
+        port        = 6379
+        name        = "tcp-redis"
+        protocol    = "TCP"
+        target_port = 6379
+      },
+    ]
+
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_service" "argocd-repo-server" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name      = "argocd-repo-server"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "repo-server"
+      "app.kubernetes.io/name"      = "argocd-repo-server"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    selector {
+      "app.kubernetes.io/name" = "${kubernetes_deployment.argocd-repo-server.metadata.0.labels.name}"
+    }
+
+    port = [
+      {
+        port        = 8081
+        name        = "server"
+        protocol    = "TCP"
+        target_port = 8081
+      },
+      {
+        port        = 8084
+        name        = "metrics"
+        protocol    = "TCP"
+        target_port = 8084
+      },
+    ]
+
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_service" "argocd-server-metrics" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name      = "argocd-server-metrics"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "server"
+      "app.kubernetes.io/name"      = "argocd-server-metrics"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    selector {
+      "app.kubernetes.io/name" = "${kubernetes_deployment.argocd-server.metadata.0.labels.name}"
+    }
+
+    port = [
+      {
+        port        = 8083
+        name        = "metrics"
+        protocol    = "TCP"
+        target_port = 8083
+      },
+    ]
+
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_service" "argocd-server" {
+  depends_on = ["google_container_cluster.vault"]
+
+  metadata {
+    name      = "argocd-server"
+    namespace = "${kubernetes_namespace.argocd.metadata.0.name}"
+
+    labels {
+      "app.kubernetes.io/component" = "server"
+      "app.kubernetes.io/name"      = "argocd-server"
+      "app.kubernetes.io/part-of"   = "argocd"
+    }
+  }
+
+  spec {
+    selector {
+      "app.kubernetes.io/name" = "${kubernetes_deployment.argocd-server.metadata.0.labels.name}"
+    }
+
+    port = [
+      {
+        port        = 80
+        name        = "http"
+        protocol    = "TCP"
+        target_port = 8080
+      },
+      {
+        port        = 443
+        name        = "https"
+        protocol    = "TCP"
+        target_port = 8080
       },
     ]
 
