@@ -26,3 +26,19 @@ module "flux_bootstrap" {
 
   dependencies = []
 }
+
+module "flux_apps" {
+  source                       = "./flux"
+  flux_repo_git_poll_interval  = "1m"
+  flux_repo_git_url            = "git@gitlab.com:mintel/satoshi/experimental/gitops-rendered-manifests.git"
+  flux_repo_git_paths          = ["apps/dev"]
+  flux_repo_git_branch         = "dev"
+  flux_repo_git_label          = "flux-apps-sync-dev"
+  flux_sync_interval           = "5m"
+  flux_sync_garbage_collection = "true"
+  flux_ssh_private_key         = "${file("${path.module}/flux.key")}"
+  flux_instance                = "apps"
+  disable_registry_scan        = "false"
+
+  dependencies = ["${module.flux_bootstrap.depended_on}"]
+}
