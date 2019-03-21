@@ -86,3 +86,8 @@ EOF
 variable "dependencies" {
   type = "list"
 }
+
+variable "disable_registry_scan" {
+  default     = "false"
+  description = "disable scanning of images for this flux instance"
+}

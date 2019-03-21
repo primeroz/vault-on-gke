@@ -22,6 +22,7 @@ module "flux_bootstrap" {
   flux_sync_garbage_collection = "true"
   flux_ssh_private_key         = "${file("${path.module}/flux.key")}"
   flux_instance                = "bootstrap"
+  disable_registry_scan        = "true"
 
   dependencies = []
 }

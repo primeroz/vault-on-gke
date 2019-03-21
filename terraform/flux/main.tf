@@ -291,7 +291,7 @@ resource "kubernetes_deployment" "flux" {
 
           args = ["${compact(concat(list(
             "--memcached-hostname=${local.basename}-memcached.${kubernetes_namespace.flux.metadata.0.name}.svc.cluster.local",
-            "--memcached-service=${local.basename}-memcached",
+            "${var.disable_registry_scan == "true" ? "--registry-exclude-image=*" : ""}",
             "--listen-metrics=:3031",
             "--git-ci-skip",
             "--ssh-keygen-dir=/var/fluxd/keygen",
