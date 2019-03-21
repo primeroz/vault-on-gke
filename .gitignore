@@ -9,3 +9,5 @@ argo/*
 argocd/*
 argodeploy/*
 *.pem
+flux.key
+flux.key.pub
