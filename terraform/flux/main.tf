@@ -1,6 +1,6 @@
 locals {
   labels = {
-    app      = "flux"
+    part-of  = "flux"
     instance = "${var.flux_instance}"
   }
 
@@ -240,7 +240,7 @@ resource "kubernetes_deployment" "flux" {
     name      = "${local.basename}"
     namespace = "${kubernetes_namespace.flux.metadata.0.name}"
 
-    labels = "${merge(map("name","${local.basename}-fluxd"), local.labels)}"
+    labels = "${merge(map("name","${local.basename}-fluxd", "app", "flux"), local.labels)}"
   }
 
   spec {
@@ -254,7 +254,7 @@ resource "kubernetes_deployment" "flux" {
 
     template {
       metadata {
-        labels = "${merge(map("name","${local.basename}-fluxd"), local.labels)}"
+        labels = "${merge(map("name","${local.basename}-fluxd", "app", "flux"), local.labels)}"
       }
 
       spec {
