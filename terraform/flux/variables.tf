@@ -91,3 +91,8 @@ variable "disable_registry_scan" {
   default     = "false"
   description = "disable scanning of images for this flux instance"
 }
+
+variable "wait_seconds_at_start" {
+  default     = "60"
+  description = "Wait for X seconds at the start of the module"
+}

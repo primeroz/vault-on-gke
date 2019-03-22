@@ -35,6 +35,10 @@ resource "kubernetes_namespace" "flux" {
     labels = "${local.labels}"
     name   = "${local.namespace}"
   }
+
+  provisioner "local-exec" {
+    command = "sleep ${var.wait_seconds_at_start}"
+  }
 }
 
 # Flux deployment
