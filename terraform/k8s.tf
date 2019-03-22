@@ -32,7 +32,7 @@ module "flux_apps" {
   source                       = "./flux"
   flux_repo_git_poll_interval  = "1m"
   flux_repo_git_url            = "git@gitlab.com:mintel/satoshi/experimental/gitops-rendered-manifests.git"
-  flux_repo_git_paths          = ["apps/dev"]
+  flux_repo_git_paths          = ["apps/common", "apps/dev"]
   flux_repo_git_branch         = "dev"
   flux_repo_git_label          = "flux-apps-sync-dev"
   flux_sync_interval           = "5m"
