@@ -40,6 +40,7 @@ module "flux_apps" {
   flux_ssh_private_key         = "${file("${path.module}/flux.key")}"
   flux_instance                = "apps"
   disable_registry_scan        = "false"
+  wait_seconds_at_start        = "30"
 
   dependencies = ["${module.flux_bootstrap.depended_on}"]
 }
