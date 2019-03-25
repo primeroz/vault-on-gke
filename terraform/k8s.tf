@@ -23,7 +23,7 @@ module "flux_bootstrap" {
   flux_ssh_private_key         = "${file("${path.module}/flux.key")}"
   flux_instance                = "bootstrap"
   disable_registry_scan        = "true"
-  wait_seconds_at_start        = "120"
+  wait_seconds_at_start        = "30"
 
   dependencies = ["${google_container_cluster.vault.id}"]
 }
